@@ -1,0 +1,3 @@
+[submodule "SeisUnixDocker"]
+	path = SeisUnixDocker
+	url = https://github.com/maltempi/SeisUnixDocker
