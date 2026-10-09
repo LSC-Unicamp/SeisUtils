@@ -14,7 +14,9 @@ colour scale and no difference section.
 Writes show_sections.sh with one `ximage` command per section and a manifest.txt.
 The runs share one clip (--perc of |reference|), so they are on the same grey scale;
 the differences share another (--diff-perc of |diff| over all runs, 99.9 by default:
-the max would leave most of the noise near zero). Windows are sized to the section's
+the max would leave most of the noise near zero), coloured with --diff-cmap (default
+rgb1: red = positive, near-white = 0, blue = negative, so only the differences stand
+out). Windows are sized to the section's
 aspect ratio (--height pixels tall).
 
 Usage:
@@ -45,6 +47,9 @@ def main():
                    help="percentile of |diff| (all runs together) used as the difference clip; "
                         "100 = max (default 99.9)")
     p.add_argument("--height", type=int, default=700, help="ximage window height in pixels")
+    p.add_argument("--diff-cmap", default="rgb1",
+                   help="ximage colour map of the difference sections (default rgb1: "
+                        "red / near-white / blue, white at zero)")
     p.add_argument("--outdir", default=".")
     args = p.parse_args()
 
@@ -109,7 +114,7 @@ def main():
                 manifest.append(f"{fn}  n1={n1} n2={d.shape[0]}  max|diff|={np.abs(d).max():.4e}")
                 lines.append(f'ximage < {fn} n1={n1} d1={d1:g} d2={dx:g} clip={dclip:.6g} '
                              f'{box(d.shape[0], dx, True)} '
-                             f'cmap=hsv2 legend=1 label1="depth (m)" label2="{xaxis} (m)" '
+                             f'cmap={args.diff_cmap} legend=1 label1="depth (m)" label2="{xaxis} (m)" '
                              f'title="{name} - {args.reference} {tag}" &')
 
     with open(os.path.join(args.outdir, "show_sections.sh"), "w") as f:

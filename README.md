@@ -111,7 +111,8 @@ without copying the whole volumes.
   - Difference sections against a reference run (`--reference`)
   - Extra volumes with their own colour scale and no difference, e.g. the velocity (`--aux`)
   - Writes `show_sections.sh` (one `ximage` per section; runs share one clip, differences
-    another, by default the 99.9th percentile of |diff| (`--diff-perc`); windows follow the
+    another, by default the 99.9th percentile of |diff| (`--diff-perc`), in a red/white/blue
+    map with white at zero (`--diff-cmap rgb1`); windows follow the
     section's aspect ratio, `--height` pixels tall) and `manifest.txt`
 
 **Requirements:** `numpy`.
