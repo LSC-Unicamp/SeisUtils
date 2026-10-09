@@ -93,6 +93,13 @@ this percentile), `crop_meters`, `border`, `blur`, `threshold`, `negative`, `out
 to the file name), `dpi` (200), `formats` (`["png"]`), `cineloop` (interactive only), `ignore`.
 Each processing step writes `out/<output>/<output>_frame-<f>_<steps>.<fmt>`.
 
+`render/error_map.py -i <json>` renders the absolute difference |a - b| of the same section of
+two volumes (e.g. a compressed run against the uncompressed baseline), plus `log(1 + |a - b|)`.
+Entries take `filepath_a`, `filepath_b`, `n1`, `n2`, `n3`, `d1`/`d2`/`d3`, `frame`,
+`crop_meters`, `output`, `dpi`, `formats`, `ignore`, `log` (default true) and `vmax`: give the
+same `vmax` to several entries to plot them on a common colour scale. It also prints the max and
+mean |a - b|. Example: `render/inputs/errormap_sample.json`.
+
 ### segy2su
 Utility to convert SEG-Y files to SU (Seismic Unix) format.
 
