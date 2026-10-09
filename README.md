@@ -112,6 +112,28 @@ python render/render.py -i cineloop.json
 Keys (with the window focused): `s` pauses, `c` continues, `→` / `←` pause and step one
 slice forward / backward. Closing the window ends the script.
 
+**Cineloop videos (batch, no display).** `render/cineloop_video.py` takes one or more
+volumes and, for each one, writes the `render.py` cineloop JSON and renders the same
+cineloop (section at `i3 = k`, symmetric clip at the 99.5th percentile) into an MP4, one
+pass over all slices at 20 fps. It needs `ffmpeg` on `PATH` (not for `--json-only`).
+Dimensions come from `--n1/--n2/--n3` (or `--n`), from an Awave3D header (`--hdr`), or from
+the file size when the volume is a cube; spacings from `--d1/--d2/--d3` (or `--d`) or the
+header.
+
+```bash
+# one result, geometry from the velocity header, plus a preview PNG of four slices
+python render/cineloop_video.py results/baseline__1416/baseline.data \
+       --hdr datasets/large/large_smooth.hdr --preview 20 96 250 400
+
+# every result of a test batch (cubes, 20 m spacing)
+python render/cineloop_video.py results/setup-test/*/*.data --d 20
+```
+
+Outputs go to `<volume dir>/renders/` (or `--outdir`), named `<parent dir>_<file stem>`:
+`_cineloop.json` (open it interactively later with `render.py -i`, from its folder),
+`_cineloop.mp4` and, with `--preview`, `_preview_i3-<slices>.png`. Existing videos are
+skipped unless `--force`. Other options: `--perc`, `--fps`, `--step`, `--dpi`, `--name`.
+
 `render/error_map.py -i <json>` renders the absolute difference |a - b| of the same section of
 two volumes (e.g. a compressed run against the uncompressed baseline), plus `log(1 + |a - b|)`.
 Entries take `filepath_a`, `filepath_b`, `n1`, `n2`, `n3`, `d1`/`d2`/`d3`, `frame`,
