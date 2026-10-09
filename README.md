@@ -79,6 +79,20 @@ Visualization tools for Awave3D outputs.
   - Creates cineloops for visualization
   - JSON-based configuration for rendering settings
 
+**Requirements:** `numpy`, `matplotlib`, and `opencv-python-headless` for `border`/`blur`.
+
+**Usage** (run from the folder where `out/` should be created; `MPLBACKEND=Agg` on machines without a display):
+```bash
+MPLBACKEND=Agg python render/render.py -i render/inputs/sample.json
+```
+
+The input is a JSON list; each entry renders the depth section at `i3 = frame` of a float32
+volume with `n1 x n2 x n3` values (`n1` = depth, fastest axis). Main keys: `filepath`, `n1`,
+`n2`, `n3`, `d1` (depth spacing; defaults to `d3`), `d2`, `frame`, `perc` (symmetric clip at
+this percentile), `crop_meters`, `border`, `blur`, `threshold`, `negative`, `output` (defaults
+to the file name), `dpi` (200), `formats` (`["png"]`), `cineloop` (interactive only), `ignore`.
+Each processing step writes `out/<output>/<output>_frame-<f>_<steps>.<fmt>`.
+
 ### segy2su
 Utility to convert SEG-Y files to SU (Seismic Unix) format.
 
