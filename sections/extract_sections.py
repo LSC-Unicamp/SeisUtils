@@ -11,9 +11,11 @@ traces of n1 samples, which is what SeisUnix `ximage`/`xwigb` read (`n1=<n1>`):
 With --reference NAME, also writes <run>-minus-<reference> difference sections.
 --aux NAME=FILE volumes (e.g. the velocity model) are cut too, but get their own
 colour scale and no difference section.
-Writes show_sections.sh with one `ximage` command per section (the runs share one
-clip, taken from the reference, so they are on the same grey scale) and a
-manifest.txt.
+Writes show_sections.sh with one `ximage` command per section and a manifest.txt.
+The runs share one clip (--perc of |reference|), so they are on the same grey scale;
+the differences share another (--diff-perc of |diff| over all runs, 99.9 by default:
+the max would leave most of the noise near zero). Windows are sized to the section's
+aspect ratio (--height pixels tall).
 
 Usage:
   extract_sections.py --shape 500 500 500 --spacing 20 20 20 --i3 250 --i2 250 \
@@ -39,6 +41,10 @@ def main():
     p.add_argument("--aux", action="append", default=[], metavar="NAME=FILE",
                    help="extra volume with its own colour scale, no difference (repeatable)")
     p.add_argument("--perc", type=float, default=99.0, help="percentile of |reference| used as clip")
+    p.add_argument("--diff-perc", type=float, default=99.9,
+                   help="percentile of |diff| (all runs together) used as the difference clip; "
+                        "100 = max (default 99.9)")
+    p.add_argument("--height", type=int, default=700, help="ximage window height in pixels")
     p.add_argument("--outdir", default=".")
     args = p.parse_args()
 
@@ -65,6 +71,11 @@ def main():
     cuts = [(f"i3-{k}", lambda v, k=k: v[k, :, :], d2, "i2") for k in args.i3] + \
            [(f"i2-{k}", lambda v, k=k: v[:, k, :], d3, "i3") for k in args.i2]
 
+    def box(ntraces, dx, legend):
+        """ximage window size with the section's aspect ratio (+ room for labels/legend)."""
+        width = round(args.height * (ntraces * dx) / (n1 * d1)) + (100 if legend else 40)
+        return f"wbox={width} hbox={args.height + 60}"
+
     lines, manifest = [], []
     for tag, cut, dx, xaxis in cuts:
         ref = cut(vols[args.reference]) if args.reference else None
@@ -77,6 +88,7 @@ def main():
             sec.tofile(os.path.join(args.outdir, fn))
             manifest.append(f"{fn}  n1={n1} n2={sec.shape[0]}  min={sec.min():.4e} max={sec.max():.4e}")
             lines.append(f'ximage < {fn} n1={n1} d1={d1:g} d2={dx:g} clip={clip:.6g} '
+                         f'{box(sec.shape[0], dx, False)} '
                          f'label1="depth (m)" label2="{xaxis} (m)" title="{name} {tag}" &')
             if ref is not None and name != args.reference:
                 diffs[name] = sec.astype(np.float64) - ref
@@ -86,14 +98,17 @@ def main():
             sec.tofile(os.path.join(args.outdir, fn))
             manifest.append(f"{fn}  n1={n1} n2={sec.shape[0]}  min={sec.min():.4e} max={sec.max():.4e}")
             lines.append(f'ximage < {fn} n1={n1} d1={d1:g} d2={dx:g} perc=100 legend=1 '
+                         f'{box(sec.shape[0], dx, True)} '
                          f'label1="depth (m)" label2="{xaxis} (m)" title="{name} {tag}" &')
         if diffs:
-            dclip = max(float(np.abs(d).max()) for d in diffs.values())
+            dclip = float(np.percentile(np.abs(np.stack(list(diffs.values()))), args.diff_perc))
+            manifest.append(f"difference clip {tag}: {dclip:.4e} ({args.diff_perc:g}th percentile of |diff|)")
             for name, d in diffs.items():
                 fn = f"{name}-minus-{args.reference}_{tag}.bin"
                 d.astype(np.float32).tofile(os.path.join(args.outdir, fn))
                 manifest.append(f"{fn}  n1={n1} n2={d.shape[0]}  max|diff|={np.abs(d).max():.4e}")
                 lines.append(f'ximage < {fn} n1={n1} d1={d1:g} d2={dx:g} clip={dclip:.6g} '
+                             f'{box(d.shape[0], dx, True)} '
                              f'cmap=hsv2 legend=1 label1="depth (m)" label2="{xaxis} (m)" '
                              f'title="{name} - {args.reference} {tag}" &')
 
