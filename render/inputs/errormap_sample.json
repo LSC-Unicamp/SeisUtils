@@ -1,0 +1,19 @@
+[
+    {
+        "comment": "former 'marmousi' preset of error_map.py",
+        "n1": 351, "n2": 901, "n3": 301, "d1": 10, "d2": 10, "d3": 10,
+        "frame": 150, "crop_meters": 500,
+        "filepath_a": "./marmousi3d-mig.592693.data",
+        "filepath_b": "./marmousi3d-mig.592695.data",
+        "output": "marmousi_errormap"
+    },
+    {
+        "comment": "former 'large' preset; set the same vmax in several entries to compare them",
+        "n1": 500, "n2": 500, "n3": 500, "d1": 20, "d2": 20, "d3": 20,
+        "frame": 250,
+        "filepath_a": "./large-mig.compressed.data",
+        "filepath_b": "./large-mig.baseline.data",
+        "output": "large_errormap",
+        "ignore": true
+    }
+]
