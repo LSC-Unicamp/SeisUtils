@@ -1,5 +1,5 @@
 import numpy as np
-from helpers import data2numpy, plot_image, crop_depth
+from helpers import data2numpy, plot_image, crop_depth, cropped_top
 import argparse
 import json
 import os
@@ -48,6 +48,7 @@ def save(entry, frame, output_filename, **kwargs):
     opts.update(kwargs)
     plot_image(frame, img_name=output_filename, **opts)
     if entry['crop_meters'] > 0:
+        opts['top'] = cropped_top(entry['crop_meters'], entry['d1'])
         plot_image(crop_depth(frame, entry['crop_meters'], entry['d1']),
                    img_name=f'{output_filename}_crop', **opts)
 

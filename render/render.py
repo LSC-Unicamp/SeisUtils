@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-from helpers import data2numpy, clip_perc, plot_image, border_detector, blur, crop_depth, render_cineloop
+from helpers import data2numpy, clip_perc, plot_image, border_detector, blur, crop_depth, cropped_top, render_cineloop
 from input import load_input
 import os
 import argparse
@@ -18,7 +18,8 @@ def save(entry, frame, output_filename):
     plot_image(frame, img_name=output_filename, **opts)
     if entry.crop_meters > 0:
         plot_image(crop_depth(frame, entry.crop_meters, entry.d1),
-                   img_name=f'{output_filename}_crop', **opts)
+                   img_name=f'{output_filename}_crop',
+                   top=cropped_top(entry.crop_meters, entry.d1), **opts)
 
 
 def main():
