@@ -79,6 +79,46 @@ Visualization tools for Awave3D outputs.
   - Creates cineloops for visualization
   - JSON-based configuration for rendering settings
 
+**Requirements:** `numpy`, `matplotlib`, and `opencv-python-headless` for `border`/`blur`.
+
+**Usage** (run from the folder where `out/` should be created; `MPLBACKEND=Agg` on machines without a display):
+```bash
+MPLBACKEND=Agg python render/render.py -i render/inputs/sample.json
+```
+
+The input is a JSON list; each entry renders the depth section at `i3 = frame` of a float32
+volume with `n1 x n2 x n3` values (`n1` = depth, fastest axis). Main keys: `filepath`, `n1`,
+`n2`, `n3`, `d1` (depth spacing; defaults to `d3`), `d2`, `frame`, `perc` (symmetric clip at
+this percentile), `crop_meters`, `border`, `blur`, `threshold`, `negative`, `output` (defaults
+to the file name), `dpi` (200), `formats` (`["png"]`), `cineloop` (interactive only), `ignore`.
+Each processing step writes `out/<output>/<output>_frame-<f>_<steps>.<fmt>`.
+
+**Cineloop.** With `"cineloop": true`, `render.py` opens a window that plays the volume slice by
+slice along `i3` (each slice is a depth section), forward then backward in a loop, 50 ms per
+frame. It needs a display (the default matplotlib backend on a desktop; it is skipped with a
+message under `MPLBACKEND=Agg`) and the whole volume in memory (500 MB for a 500^3 image). The
+clip is fixed at the 99.5th percentile of each slice; `frame`, `perc`, `border`, `threshold`,
+etc. are ignored in this mode. Minimal input:
+
+```json
+[ { "n1": 500, "n2": 500, "n3": 500, "d1": 20, "d2": 20, "d3": 20,
+    "filepath": "baseline.data", "cineloop": true } ]
+```
+
+```bash
+python render/render.py -i cineloop.json
+```
+
+Keys (with the window focused): `s` pauses, `c` continues, `→` / `←` pause and step one
+slice forward / backward. Closing the window ends the script.
+
+`render/error_map.py -i <json>` renders the absolute difference |a - b| of the same section of
+two volumes (e.g. a compressed run against the uncompressed baseline), plus `log(1 + |a - b|)`.
+Entries take `filepath_a`, `filepath_b`, `n1`, `n2`, `n3`, `d1`/`d2`/`d3`, `frame`,
+`crop_meters`, `output`, `dpi`, `formats`, `ignore`, `log` (default true) and `vmax`: give the
+same `vmax` to several entries to plot them on a common colour scale. It also prints the max and
+mean |a - b|. Example: `render/inputs/errormap_sample.json`.
+
 ### segy2su
 Utility to convert SEG-Y files to SU (Seismic Unix) format.
 
