@@ -53,30 +53,39 @@ def clip_perc(frame, perc):
     return np.clip(frame, -clip, +clip)
 
 
-def plot_image(frame, d2=1, d3=1, vmin=None, vmax=None, colorbar=False, img_name='plot', cmap=plt.cm.gray, save=False):
-    # fig, ax = plt.subplots()
+def plot_image(frame, d2=1, d3=1, vmin=None, vmax=None, colorbar=False, img_name='plot',
+               cmap=plt.cm.gray, save=False, d1=None, ax=None, dpi=200, formats=('png',), top=0):
+    """Plot a depth section: rows = depth (n1, spacing d1), columns = distance (spacing d2).
 
-    x_max = (frame.shape[1] * d2) / 1000  # pixel spacing, in km
-    y_max = (frame.shape[0] * d3) / 1000  # pixel spacing, in km
+    d3 is kept for backward compatibility: it was used as the depth spacing when d1 is
+    not given. With `ax`, draws on that axis (used by the cineloop) and never saves.
+    With `save`, writes <img_name>.<fmt> for each format and closes the figure.
+    `top` is the depth (m) of the first row, e.g. after crop_depth.
+    """
+    if d1 is None:
+        d1 = d3
+    x_max = (frame.shape[1] * d2) / 1000  # distance, in km
+    y_top = top / 1000                                # depth of the first row, in km
+    y_max = y_top + (frame.shape[0] * d1) / 1000      # depth of the last row, in km
 
-    # depth is on axis-y
-    plt.gca().invert_yaxis()
+    own_figure = ax is None
+    if own_figure:
+        fig, ax = plt.subplots()
 
-    im = plt.imshow(
-        frame, extent=[0, x_max, y_max, 0], cmap=cmap, vmin=vmin, vmax=vmax,)
-
-    plt.ylabel('Depth (km)')
-    plt.xlabel('Distance (km)')
+    # extent (left, right, bottom, top): the shallowest row at the top (origin='upper')
+    im = ax.imshow(frame, extent=[0, x_max, y_max, y_top], cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.set_ylabel('Depth (km)')
+    ax.set_xlabel('Distance (km)')
 
     if colorbar:
-        plt.colorbar(im)
+        ax.figure.colorbar(im, ax=ax)
 
-    if save:
-        plt.savefig(f'{img_name}.svg', bbox_inches='tight',
-                    dpi=1200, format='svg')
-        plt.savefig(f'{img_name}.png', bbox_inches='tight',
-                    dpi=1200, format='png')
-        plt.close()
+    if own_figure:
+        if save:
+            for fmt in formats:
+                fig.savefig(f'{img_name}.{fmt}', bbox_inches='tight', dpi=dpi, format=fmt)
+            print('  wrote', ', '.join(f'{img_name}.{fmt}' for fmt in formats))
+        plt.close(fig)
 
 
 def border_detector(frame):
@@ -89,8 +98,18 @@ def blur(frame):
     return cv2.GaussianBlur(frame, (5, 5), 0)
 
 
-def crop_depth(frame, crop_meters, d2):
-    return frame.copy()[int(crop_meters/d2):, :]
+def crop_depth(frame, crop_meters, d1):
+    """Drop the first crop_meters of depth (rows, spacing d1).
+
+    The cropped section starts at depth cropped_top(crop_meters, d1); pass it as
+    plot_image(top=...) so the depth axis keeps the true depths.
+    """
+    return frame.copy()[int(crop_meters/d1):, :]
+
+
+def cropped_top(crop_meters, d1):
+    """Depth (m) of the first row left by crop_depth."""
+    return int(crop_meters/d1) * d1
 
 
 def render_cineloop(a, d2, d3):
@@ -113,7 +132,7 @@ def render_cineloop(a, d2, d3):
 
         print(f'Frame {frame_num}/{num_frames}')
         frame = clip_perc(a[frame_num, :, :,].T, 99.5)
-        plot_image(frame, d2, d3)
+        plot_image(frame, d2, d3, ax=plt.gca())
 
         plt.title(f'Frame {frame_num}/{num_frames}')
 

@@ -1,116 +1,93 @@
 import numpy as np
-from helpers import data2numpy, clip_perc, plot_image, border_detector, blur, crop_depth, MergeObj
+from helpers import data2numpy, plot_image, crop_depth, cropped_top
+import argparse
+import json
 import os
 
-large_addedwater = {
-    'n1': 600,
-    'n2': 500,
-    'n3': 500,
-    'd2': 20,
-    'd3': 20,
-    'frame': 250,
-    'perc': 90,
-    'border': True,
-    'blur': False,
-    'negative': True,
-    'threshold': 0.1,
+
+DEFAULTS = {
+    'd1': None,      # depth spacing; defaults to d3 (older inputs used d3 for depth)
+    'd2': 1,
+    'd3': 1,
+    'frame': 0,
+    'crop_meters': 0,
+    'vmax': None,    # fixed colour scale (same scale across entries); default: max of the map
+    'log': True,     # also write log(1 + |a - b|)
+    'output': '',
+    'ignore': False,
+    'dpi': 200,
+    'formats': ['png'],
 }
 
-salt_addedwater = {
-    'n1': 310,
-    'n2': 676,
-    'n3': 676,
-    'd2': 20,
-    'd3': 20,
-    'crop_meters': 200,
-    'frame': 300,
-    'perc': 99,
-    'border': True,
-    'blur': False,
-    'negative': True,
-    'threshold': 0.1,
-}
 
-large = {
-    'n1': 500,
-    'n2': 500,
-    'n3': 500,
-    'd2': 20,
-    'd3': 20,
-    'frame': 250,
-    'perc': 90,
-    'border': True,
-    'blur': False,
-    'negative': True,
-    'threshold': 0.1,
-}
-
-marmousi = {
-    'n1': 351,
-    'n2': 901,
-    'n3': 301,
-    'd2': 10,
-    'd3': 10,
-    'frame': 150,
-    'perc': 99.5,
-    'border': True,
-    'blur': False,
-    'negative': True,
-    'threshold': 0.1,
-    'crop_meters': 500
-}
-
-entries = [
-    MergeObj(marmousi, {
-        'filepath_a': './marmousi3d-mig.592693.data',
-        'filepath_b': './marmousi3d-mig.592695.data',
-        'output': 'marmousi_errormap',
-        'ignore': False,
-    }),
-]
+def input_args():
+    parser = argparse.ArgumentParser(
+        description='Renders the absolute difference |a - b| between two Awave3D outputs.')
+    parser.add_argument('-i', '--input', help='The JSON file received as input.', required=True)
+    return parser.parse_args()
 
 
-def crop(frame, meters, d2, d3, output_filename):
-    if meters > 0:
-        cropped = crop_depth(frame, meters, d2)
-        plot_image(cropped, img_name=f'{output_filename}_crop', d2=d2, d3=d3)
+def load_entries(json_file):
+    with open(json_file, 'r') as file:
+        data = json.load(file)
+    entries = []
+    for item in data:
+        for key in ('n1', 'n2', 'n3', 'filepath_a', 'filepath_b'):
+            if key not in item:
+                raise ValueError(f'entry without "{key}": {item}')
+        entry = {**DEFAULTS, **item}
+        if entry['d1'] is None:
+            entry['d1'] = entry['d3']
+        entries.append(entry)
+    return entries
+
+
+def save(entry, frame, output_filename, **kwargs):
+    opts = dict(d1=entry['d1'], d2=entry['d2'], save=True, dpi=entry['dpi'],
+                formats=tuple(entry['formats']), colorbar=True, cmap='viridis', vmin=0)
+    opts.update(kwargs)
+    plot_image(frame, img_name=output_filename, **opts)
+    if entry['crop_meters'] > 0:
+        opts['top'] = cropped_top(entry['crop_meters'], entry['d1'])
+        plot_image(crop_depth(frame, entry['crop_meters'], entry['d1']),
+                   img_name=f'{output_filename}_crop', **opts)
+
+
+def main():
+    entries = load_entries(input_args().input)
+
+    for entry in entries:
+        name = entry['output'] or (
+            os.path.splitext(os.path.basename(entry['filepath_a']))[0] + '_vs_' +
+            os.path.splitext(os.path.basename(entry['filepath_b']))[0])
+        if entry['ignore']:
+            print('Ignoring', name)
+            continue
+        print('Rendering', name)
+
+        seismic_a = data2numpy(entry['filepath_a'], entry['n1'], entry['n2'], entry['n3'])
+        seismic_b = data2numpy(entry['filepath_b'], entry['n1'], entry['n2'], entry['n3'])
+
+        # One folder per entry: ./out/<output>/
+        out_dir = f'.{os.path.sep}out{os.path.sep}{name}{os.path.sep}'
+        os.makedirs(out_dir, exist_ok=True)
+        output_filename = out_dir + name + f'_frame-{entry["frame"]}'
+
+        # Section at i3 = frame: rows = depth (n1), columns = n2
+        frame_a = seismic_a[entry['frame'], :, :].T.astype(np.float64)
+        frame_b = seismic_b[entry['frame'], :, :].T.astype(np.float64)
+
+        diff = np.abs(frame_a - frame_b)
+        amp = float(np.percentile(np.abs(frame_b), 99))
+        print(f'  max |a - b| = {diff.max():.4e}, mean = {diff.mean():.4e}, '
+              f'99th percentile of |b| = {amp:.4e}')
+
+        vmax = entry['vmax'] if entry['vmax'] is not None else float(diff.max())
+        save(entry, diff, f'{output_filename}_abs', vmax=vmax)
+
+        if entry['log']:
+            save(entry, np.log1p(diff), f'{output_filename}_log', vmax=float(np.log1p(vmax)))
 
 
 if __name__ == '__main__':
-    for entry in entries:
-        if entry.get('ignore'):
-            print('Ignoring', entry['output'])
-            continue
-        else:
-            print('Rendering', entry['output'])
-
-        seismic_a = data2numpy(
-            entry['filepath_a'], entry['n1'], entry['n2'], entry['n3'])
-        seismic_b = data2numpy(
-            entry['filepath_b'], entry['n1'], entry['n2'], entry['n3'])
-
-        d2 = entry.get('d2', 1)
-        d3 = entry.get('d3', 1)
-
-        # Cleanup old results and create a folder
-        out_dir = entry['output']
-        if not out_dir:
-            raise Exception('Missing output parameter')
-
-        out_dir = f'.{os.path.sep}out{os.path.sep}{out_dir}{os.path.sep}'
-        os.makedirs(out_dir, exist_ok=True)
-        output_filename = out_dir + entry['output']
-
-        frame_a = seismic_a[entry['frame'], :, :,].T.copy()
-        frame_b = seismic_b[entry['frame'], :, :,].T.copy()
-
-        diff = np.abs(frame_a - frame_b)
-
-        # diff = np.where(diff > 0.1, 1, 0)
-
-        plot_image(diff, d2=d2, d3=d3,
-                   img_name=f'{output_filename}_abs', colorbar=True, cmap='viridis')
-        
-        diff_log = np.log1p(diff)
-        plot_image(diff_log, d2=d2, d3=d3,
-                   img_name=f'{output_filename}_log', colorbar=True, cmap='viridis')
+    main()

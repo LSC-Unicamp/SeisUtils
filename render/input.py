@@ -8,8 +8,9 @@ class Input:
     n2: int
     n3: int
     filepath: str
-    d2: int = 1
-    d3: int = 1
+    d1: float = 1
+    d2: float = 1
+    d3: float = 1
     crop_meters: int = 0
     frame: int = 0
     perc: float = 0.0
@@ -20,6 +21,8 @@ class Input:
     output: str = ""
     ignore: bool = False
     cineloop: bool = False
+    dpi: int = 200
+    formats: tuple = ("png",)
 
 
 def load_input(json_file):
@@ -33,8 +36,10 @@ def load_input(json_file):
                     n2=item['n2'],
                     n3=item['n3'],
                     filepath=item['filepath'],
-                    d2=item.get('d2', 0),
-                    d3=item.get('d3', 0),
+                    # depth (n1) spacing; older inputs only had d2/d3 and used d3 for depth
+                    d1=item.get('d1', item.get('d3', 1)),
+                    d2=item.get('d2', 1),
+                    d3=item.get('d3', 1),
                     crop_meters=item.get('crop_meters', 0),
                     frame=item.get('frame', 0),
                     perc=item.get('perc', 0.0),
@@ -45,6 +50,8 @@ def load_input(json_file):
                     output=item.get('output', ""),
                     ignore=item.get('ignore', False),
                     cineloop=item.get('cineloop', False),
+                    dpi=item.get('dpi', 200),
+                    formats=tuple(item.get('formats', ["png"])),
                     )
 
         objects_list.append(obj)
