@@ -119,6 +119,32 @@ Entries take `filepath_a`, `filepath_b`, `n1`, `n2`, `n3`, `d1`/`d2`/`d3`, `fram
 same `vmax` to several entries to plot them on a common colour scale. It also prints the max and
 mean |a - b|. Example: `render/inputs/errormap_sample.json`.
 
+### sections
+Cuts 2D sections of Awave3D volumes (migrated images `.data`, velocity `.bin`) into small raw
+files, so they can be viewed interactively on another machine (e.g. a laptop with SeisUnix)
+without copying the whole volumes.
+
+- **Main Features:**
+  - Sections at fixed `i3` and/or `i2` (`--i3`, `--i2`, repeatable), written as float32 traces of
+    `n1` samples, readable by SeisUnix `ximage`/`xwigb` with `n1=<n1>` (no SU headers)
+  - Difference sections against a reference run (`--reference`)
+  - Extra volumes with their own colour scale and no difference, e.g. the velocity (`--aux`)
+  - Writes `show_sections.sh` (one `ximage` per section; runs share one clip, differences
+    another, by default the 99.9th percentile of |diff| (`--diff-perc`), in a red/white/blue
+    map with white at zero (`--diff-cmap rgb1`); windows follow the
+    section's aspect ratio, `--height` pixels tall) and `manifest.txt`
+
+**Requirements:** `numpy`.
+
+**Usage:**
+```bash
+python sections/extract_sections.py --shape 500 500 500 --spacing 20 20 20 --i3 250 --i2 250 \
+    --reference baseline --outdir out_sections \
+    baseline=baseline.data bitcomp=bitcomp.data --aux velocity=vel_smooth.bin
+# copy out_sections/ to the viewing machine, then:
+sh out_sections/show_sections.sh
+```
+
 ### segy2su
 Utility to convert SEG-Y files to SU (Seismic Unix) format.
 
